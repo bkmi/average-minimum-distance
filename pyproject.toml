@@ -1,5 +1,5 @@
 [project]
-name = "average-minimum-distance"
+name = "amd"
 description = "Descriptors of crystals based on geometry (isometry invariants)."
 readme = "README.md"
 requires-python = ">=3.9"
