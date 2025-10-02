@@ -39,7 +39,7 @@ version = {attr = "amd.__version__"}
 dependencies = {file = "requirements.txt"}
 
 [project.optional-dependencies]
-ccdc = ["csd-python-api"]
+# ccdc = ["csd-python-api"]
 pymatgen = ["pymatgen"]
 dev = ["pytest"]
 docs = ["mock<=5.2.0"]
