@@ -387,7 +387,6 @@ class StrCifReader(_Reader):
         if reader == "gemmi":
             import gemmi
 
-            extensions = {"cif"}
             str_parser = gemmi.cif.read_string
             converter = functools.partial(
                 periodicset_from_gemmi_block,
@@ -407,9 +406,22 @@ class StrCifReader(_Reader):
         if isinstance(cifs, str):
             iterable = str_parser(cifs)
         else:
-            iterable = [str_parser(item) for item in cifs]
+            iterable = self._concatenate_cif_strings(cifs=cifs, file_parser=str_parser)
 
         super().__init__(iterable, converter, show_warnings, verbose)
+
+    @staticmethod
+    def _concatenate_cif_strings(
+        cifs: list[str], file_parser: Callable
+    ) -> Iterator:
+        for i, cif in enumerate(cifs):
+            try:
+                yield from file_parser(cif)
+            except Exception as e:
+                warnings.warn(
+                    f'Error parsing "{i}"th CIF, skipping index. '
+                    f"Exception: {repr(e)}"
+                )
 
 
 class CSDReader(_Reader):
