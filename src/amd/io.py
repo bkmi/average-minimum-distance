@@ -66,6 +66,7 @@ _CIF_TAGS: dict = {
 
 __all__ = [
     "CifReader",
+    "StrCifReader",
     "CSDReader",
     "ParseError",
     "periodicset_from_gemmi_block",
