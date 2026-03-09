@@ -26,14 +26,14 @@ for level in rattle_levels:
 
 pdds = [amd.PDD(crystal, 100) for crystal in crystals] # calculate PDDs (k=100)
 d = [amd.EMD(pdds[0], pdd) for pdd in pdds[1:]] # (Earth mover's) distance between 1st and 2nd PDDs
-print(d)
 
 matcher = StructureMatcher()
 rmsds = []
-for i, rattled_structure in enumerate(rattled_structures[1:]):
+print(f"{'Rattle level':<20} {'RMSD with original':<25} {'EMD distance':<15}")
+for i, (rattled_structure, distance) in enumerate(zip(rattled_structures[1:], d)):
     try:
         rmsd, _ = matcher.get_rms_dist(rattled_structures[0], rattled_structure)
     except:
         rmsd = np.nan
     rmsds.append(rmsd)
-    print(f"Rattle level {rattle_levels[i+1]:.2f} Å: RMSD with original? {rmsds[-1]}")
+    print(f"{rattle_levels[i+1]:<20.2f} {rmsds[-1]:<25} {distance:<15}")
