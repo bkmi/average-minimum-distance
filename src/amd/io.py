@@ -227,7 +227,6 @@ class CifReader(_Reader):
         heaviest_component: bool = False,
         molecular_centres: bool = False,
     ):
-
         if reader != "ccdc":
             if heaviest_component:
                 raise NotImplementedError(
@@ -244,7 +243,6 @@ class CifReader(_Reader):
 
         # cannot handle some characters (�) in cifs
         if reader == "gemmi":
-            
             import gemmi
 
             extensions = {"cif"}
@@ -336,6 +334,101 @@ class CifReader(_Reader):
                     )
 
 
+class StrCifReader(_Reader):
+    """Read all structures in a (list of) .cif strings, yielding
+    :class:`amd.PeriodicSet <.periodicset.PeriodicSet>` s.
+
+    Parameters
+    ----------
+    string(s) : str, list[str]
+        Path to a .CIF file or directory. (Other files are accepted when
+        using ``reader='ccdc'``, if csd-python-api is installed.)
+    reader : str, optional
+        The backend package used to parse the CIF. The default is
+        :code:`gemmi`, :code:`ccdc` is accepted if csd-python-api is
+        installed. The ccdc backend should be able to read any format
+        accepted by :class:`ccdc.io.EntryReader`.
+    remove_hydrogens : bool
+        Remove Hydrogens from the crystals.
+    skip_disorder : bool
+        Do not read disordered structures.
+    heaviest_component : bool
+        csd-python-api only. Removes all but the heaviest molecule in
+        the asymmeric unit, intended for removing solvents.
+    molecular_centres : bool, default False
+        csd-python-api only. Extract the centres of molecules in the
+        unit cell and store in the attribute molecular_centres.
+    show_warnings : bool
+        Controls whether warnings that arise during reading are printed.
+    verbose : bool, default False
+        If True, prints a progress bar showing the number of items
+        processed.
+
+    Yields
+    ------
+    :class:`amd.PeriodicSet <.periodicset.PeriodicSet>`
+        Represents the crystal as a periodic set, consisting of a finite
+        set of points (motif) and lattice (unit cell). Contains other
+        data, e.g. the crystal's name and information about the
+        asymmetric unit.
+    """
+
+    def __init__(
+        self,
+        cifs: str | list[str],
+        reader: str = "gemmi",
+        remove_hydrogens: bool = False,
+        skip_disorder: bool = False,
+        missing_coords: str = "warn",
+        eq_site_tol: float = 1e-3,
+        show_warnings: bool = True,
+        verbose: bool = False,
+        heaviest_component: bool = False,
+        molecular_centres: bool = False,
+    ):
+        if reader != "ccdc":
+            if heaviest_component:
+                raise NotImplementedError(
+                    "'heaviest_component' parameter of "
+                    f"{self.__class__.__name__} only implemented with "
+                    "csd-python-api, if installed pass reader='ccdc'"
+                )
+            if molecular_centres:
+                raise NotImplementedError(
+                    "'molecular_centres' parameter of "
+                    f"{self.__class__.__name__} only implemented with "
+                    "csd-python-api, if installed pass reader='ccdc'"
+                )
+
+        # cannot handle some characters (�) in cifs
+        if reader == "gemmi":
+            import gemmi
+
+            extensions = {"cif"}
+            str_parser = gemmi.cif.read_string
+            converter = functools.partial(
+                periodicset_from_gemmi_block,
+                remove_hydrogens=remove_hydrogens,
+                skip_disorder=skip_disorder,
+                missing_coords=missing_coords,
+                eq_site_tol=eq_site_tol,
+            )
+        elif reader == "ccdc":
+            raise NotImplementedError("ccdc not implemented yet")
+        else:
+            raise ValueError(
+                f"'reader' parameter of {self.__class__.__name__} must be one "
+                f"of 'gemmi', 'ccdc' (passed '{reader}')"
+            )
+
+        if isinstance(cifs, str):
+            iterable = str_parser(cifs)
+        else:
+            iterable = [str_parser(item) for item in cifs]
+
+        super().__init__(iterable, converter, show_warnings, verbose)
+
+
 class CSDReader(_Reader):
     """Read structures from the CSD with csd-python-api, yielding
     :class:`amd.PeriodicSet <.periodicset.PeriodicSet>` s.
@@ -419,7 +512,6 @@ class CSDReader(_Reader):
         heaviest_component: bool = False,
         molecular_centres: bool = False,
     ):
-
         try:
             import ccdc.search
             import ccdc.io
@@ -435,7 +527,7 @@ class CSDReader(_Reader):
         elif isinstance(refcodes, list):
             if not all(isinstance(refcode, str) for refcode in refcodes):
                 raise ValueError(
-                    f"List passed to {self.__class__.__name__} contains " "non-strings."
+                    f"List passed to {self.__class__.__name__} contains non-strings."
                 )
         else:
             raise ValueError(
@@ -994,7 +1086,9 @@ def periodicset_from_ccdc_crystal(
         for asm in crystal.disorder.assemblies:
             for grp in asm.groups:
                 for atom in grp.atoms:
-                    if atom.index < len(asym_unit): # fix: asym unit not giving all atoms
+                    if atom.index < len(
+                        asym_unit
+                    ):  # fix: asym unit not giving all atoms
                         assemblies[atom.index] = str(asm.id)
                         groups[atom.index] = str(grp.id)
 
@@ -1322,7 +1416,6 @@ def _disorder_assemblies(
 
     # Follow given assemblies and groups
     for i, (asmbly, grp) in enumerate(zip(assemblies, groups)):
-
         if asym_occs[i] == 1:
             continue
 
@@ -1338,7 +1431,6 @@ def _disorder_assemblies(
 
     # fractional occupancies with no given groups or assemblies
     if None in disorder and None in disorder[None]:
-
         # Find substitutional disorder. Overlapping disordered atoms
         # are assumed to be substitutionally disordered.
         inds = disorder[None][None]
@@ -1349,7 +1441,6 @@ def _disorder_assemblies(
 
         leftover = []  # atoms not overlapping
         for grp in grps:
-
             if len(grp) == 1:
                 leftover.append(inds[grp[0]])
             else:
@@ -1364,7 +1455,6 @@ def _disorder_assemblies(
 
         # Not substiutional
         if leftover:
-
             # seperate atoms with different occuapancies
             leftover_occs_arr = np.array(asym_occs)[leftover]
             occ_grps_pdist = (
@@ -1467,9 +1557,7 @@ def _tuples_sum_to_one(unqiue_occs):
     done = set()
 
     def _combs_totalling_one(occs, m):
-
         def helper(start, index, current_combination):
-
             if index == m:
                 if np.sum(occs[current_combination]) == 1:
                     for i in current_combination:
@@ -1646,7 +1734,6 @@ def str2float(string):
 
 
 def _get_cif_tags(block, cif_tags):
-
     import gemmi
 
     data = {}
